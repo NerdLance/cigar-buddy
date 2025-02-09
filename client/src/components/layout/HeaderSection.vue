@@ -25,8 +25,8 @@
                 <nav class="flex gap-2 items-center text-sm">
                     <RouterLink v-if="auth.isAuthenticated" to="/dashboard">Dashboard</RouterLink>
                     <p v-if="auth.isAuthenticated">|</p>
-                    <RouterLink to="/image/general/upload">Upload</RouterLink>
-                    <p>|</p>
+                    <RouterLink v-if="auth.isAuthenticated" to="/image/general/upload">Upload</RouterLink>
+                    <p v-if="auth.isAuthenticated">|</p>
                     <RouterLink v-if="!auth.isAuthenticated" to="/login">Login</RouterLink>
                     <button type="button" v-if="auth.isAuthenticated" @click="logout">Logout</button>
                     <p v-if="!auth.isAuthenticated">|</p>

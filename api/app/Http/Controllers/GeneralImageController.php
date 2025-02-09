@@ -6,6 +6,7 @@ use Exception;
 
 use App\Models\GeneralImage;
 
+use Illuminate\Http\File;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -39,23 +40,27 @@ class GeneralImageController extends Controller
 
             try {
                 $originalPath = "{$basePath}/original.jpg";
-                //$path = Storage::disk('s3')->putFile($originalPath, $file);
+                
                 $this->convert_original_and_upload($file, $originalPath);
 
                 $largePath = "{$basePath}/large.jpg";
                 $thumbPath = "{$basePath}/thumb.jpg";
-
+                
                 $this->resize_and_upload($file, $largePath, 1024);
                 $this->resize_and_upload($file, $thumbPath, 256);
 
+                $s3Path = Storage::disk('s3')->path($originalPath);
+                $s3Url = Storage::disk('s3')->url($s3Path);
+
                 $image->update([
-                    's3_path' => $originalPath,
-                    's3_url' => Storage::disk('s3')->url($originalPath),
+                    's3_path' => $s3Path,
+                    's3_url' => $s3Url,
                 ]);
 
                 $uploadedImages[] = $image;
             } catch (Exception $e) {
                 $image->delete();
+                Log::debug($e->getMessage());
                 return response()->json(['message' => 'Upload failed'], 500);
             }
         }
@@ -71,13 +76,12 @@ class GeneralImageController extends Controller
         $tempFile = tempnam(sys_get_temp_dir(), 'img');
 
         Image::useImageDriver(ImageDriver::Gd)
-            ->loadFile($file)
+            ->loadFile($file->getRealPath())
             ->format('jpg')
             ->save($tempFile);
 
-        $result = Storage::disk('s3')->putFile($path, $tempFile, 'public');
+        Storage::disk('s3')->put($path, file_get_contents($tempFile), 'public');
 
-        Log::debug($result);
         unlink($tempFile);
     }
 
@@ -86,13 +90,13 @@ class GeneralImageController extends Controller
         $tempFile = tempnam(sys_get_temp_dir(), 'img');
 
         Image::useImageDriver(ImageDriver::Gd)
-            ->loadFile($file)
+            ->loadFile($file->getRealPath())
             ->format('jpg')
             ->fit(Fit::Max, $width)
             ->optimize()
             ->save($tempFile);
 
-        Storage::disk('s3')->putFile($path, $tempFile, 'public');
+        Storage::disk('s3')->put($path, file_get_contents($tempFile), 'public');
 
         unlink($tempFile);
     }
